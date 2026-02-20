@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AWS Notes API Tester</title>
+  <style>
+    body {
+      background: #111827;
+      color: #e5e7eb;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      margin-top: 0;
+      margin-bottom: 10px;
+    }
+    label {
+      font-weight: 600;
+      display: block;
+      margin-bottom: 4px;
+    }
+    textarea, input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px;
+      margin-bottom: 12px;
+      border-radius: 4px;
+      border: 1px solid #374151;
+      background: #1f2937;
+      color: #e5e7eb;
+    }
+    textarea {
+      min-height: 80px;
+    }
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    button {
+      padding: 6px 12px;
+      border-radius: 4px;
+      border: none;
+      background: #2563eb;
+      color: white;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    button:hover {
+      background: #1d4ed8;
+    }
+    button.danger {
+      background: #dc2626;
+    }
+    button.danger:hover {
+      background: #b91c1c;
+    }
+    .panel {
+      margin-bottom: 16px;
+      padding: 12px;
+      border-radius: 6px;
+      background: #020617;
+      border: 1px solid #1f2937;
+    }
+    pre {
+      background: #020617;
+      padding: 10px;
+      border-radius: 4px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 260px;
+      overflow-y: auto;
+    }
+    .notes-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 260px;
+      overflow-y: auto;
+    }
+    .note-item {
+      padding: 8px;
+      border-radius: 4px;
+      background: #111827;
+      border: 1px solid #1f2937;
+      font-size: 0.9rem;
+    }
+    .note-id {
+      font-family: monospace;
+      font-size: 0.78rem;
+      color: #9ca3af;
+    }
+    .note-meta {
+      color: #9ca3af;
+      font-size: 0.8rem;
+    }
+    .note-text {
+      margin-top: 4px;
+    }
+    .status-bar {
+      font-size: 0.85rem;
+      margin-bottom: 4px;
+    }
+    .status-ok {
+      color: #22c55e;
+    }
+    .status-error {
+      color: #f97316;
+    }
+  </style>
+</head>
+<body>
+  <h1>AWS Notes API Tester</h1>
+  <p style="margin-top:0; color:#9ca3af;">Backend: API Gateway + Lambda + DynamoDB + Cognito</p>
+
+  <div class="panel">
+    <label for="token">Access Token (Bearer):</label>
+    <textarea id="token" placeholder="Paste your Cognito access token here"></textarea>
+  </div>
+
+  <div class="panel">
+    <label for="noteText">Note text:</label>
+    <textarea id="noteText" placeholder="Write a note..."></textarea>
+
+    <label for="noteId">Note ID (for update/delete):</label>
+    <input id="noteId" placeholder="e.g. 1234abcd-..." />
+
+    <div class="btn-row">
+      <button id="btnList">List notes (GET)</button>
+      <button id="btnCreate">Create note (POST)</button>
+      <button id="btnUpdate">Update note (PUT)</button>
+      <button id="btnDelete" class="danger">Delete note (DELETE)</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="status-bar" id="statusLine">Status: (none)</div>
+    <strong>Notes:</strong>
+    <div class="notes-list" id="notesList"></div>
+  </div>
+
+  <div class="panel">
+    <strong>Raw response / errors:</strong>
+    <pre id="responseBox">Waiting for request...</pre>
+  </div>
+
+  <script>
+    // === CONFIG ===
+    const API_URL = "https://ss5k5py93l.execute-api.ap-southeast-2.amazonaws.com/prod/notes";
+
+    const tokenEl = document.getElementById("token");
+    const noteTextEl = document.getElementById("noteText");
+    const noteIdEl = document.getElementById("noteId");
+    const responseBox = document.getElementById("responseBox");
+    const notesListEl = document.getElementById("notesList");
+    const statusLine = document.getElementById("statusLine");
+
+    document.getElementById("btnList").addEventListener("click", listNotes);
+    document.getElementById("btnCreate").addEventListener("click", createNote);
+    document.getElementById("btnUpdate").addEventListener("click", updateNote);
+    document.getElementById("btnDelete").addEventListener("click", deleteNote);
+
+    function getToken() {
+      const t = tokenEl.value.trim();
+      if (!t) throw new Error("Please paste an access token first.");
+      return t;
+    }
+
+    function setStatus(ok, text) {
+      statusLine.textContent = "Status: " + text;
+      statusLine.className = "status-bar " + (ok ? "status-ok" : "status-error");
+    }
+
+    function showResponse(obj) {
+      try {
+        responseBox.textContent = JSON.stringify(obj, null, 2);
+      } catch {
+        responseBox.textContent = String(obj);
+      }
+    }
+
+    function renderNotes(items) {
+      notesListEl.innerHTML = "";
+      if (!items || !items.length) {
+        const p = document.createElement("div");
+        p.textContent = "(no notes)";
+        p.style.color = "#9ca3af";
+        notesListEl.appendChild(p);
+        return;
+      }
+
+      for (const n of items) {
+        const div = document.createElement("div");
+        div.className = "note-item";
+
+        const idLine = document.createElement("div");
+        idLine.className = "note-id";
+        idLine.textContent = n.id || "(no id)";
+        idLine.addEventListener("click", () => {
+          noteIdEl.value = n.id || "";
+        });
+
+        const meta = document.createElement("div");
+        meta.className = "note-meta";
+        const created = n.createdAt ? `created ${n.createdAt}` : "";
+        const updated = n.updatedAt ? ` • updated ${n.updatedAt}` : "";
+        meta.textContent = created + updated;
+
+        const text = document.createElement("div");
+        text.className = "note-text";
+        text.textContent = n.text || "";
+
+        div.appendChild(idLine);
+        div.appendChild(meta);
+        div.appendChild(text);
+        notesListEl.appendChild(div);
+      }
+    }
+
+    async function apiRequest(method, body, id) {
+      let url = API_URL;
+      if (id) {
+        const qs = new URLSearchParams({ id });
+        url += "?" + qs.toString();
+      }
+
+      const headers = {
+        "Authorization": "Bearer " + getToken()
+      };
+      if (body) {
+        headers["Content-Type"] = "application/json";
+      }
+
+      const res = await fetch(url, {
+        method,
+        headers,
+        body: body ? JSON.stringify(body) : undefined
+      });
+
+      const text = await res.text();
+      let data;
+      try {
+        data = text ? JSON.parse(text) : null;
+      } catch {
+        data = text;
+      }
+
+      setStatus(res.ok, res.status + " " + res.statusText);
+      showResponse(data);
+
+      return { res, data };
+    }
+
+    async function listNotes() {
+      try {
+        const { data } = await apiRequest("GET");
+        renderNotes(data && data.items ? data.items : []);
+      } catch (err) {
+        setStatus(false, "Error");
+        showResponse("Request error: " + err.message);
+      }
+    }
+
+    async function createNote() {
+      try {
+        const text = noteTextEl.value;
+        const { data } = await apiRequest("POST", { text });
+        // After creating, refresh list and prefill ID
+        if (data && data.id) {
+          noteIdEl.value = data.id;
+        }
+        await listNotes();
+      } catch (err) {
+        setStatus(false, "Error");
+        showResponse("Request error: " + err.message);
+      }
+    }
+
+    async function updateNote() {
+      try {
+        const id = noteIdEl.value.trim();
+        if (!id) {
+          alert("Enter a note ID first");
+          return;
+        }
+        const text = noteTextEl.value;
+        await apiRequest("PUT", { text }, id);
+        await listNotes();
+      } catch (err) {
+        setStatus(false, "Error");
+        showResponse("Request error: " + err.message);
+      }
+    }
+
+    async function deleteNote() {
+      try {
+        const id = noteIdEl.value.trim();
+        if (!id) {
+          alert("Enter a note ID first");
+          return;
+        }
+        await apiRequest("DELETE", null, id);
+        await listNotes();
+      } catch (err) {
+        setStatus(false, "Error");
+        showResponse("Request error: " + err.message);
+      }
+    }
+
+    // === Auto-load notes if token already present ===
+    window.addEventListener("load", () => {
+      // If you want, you can uncomment these lines to remember token:
+      // const saved = localStorage.getItem("notes_access_token");
+      // if (saved) tokenEl.value = saved;
+
+      if (tokenEl.value.trim()) {
+        listNotes();
+      }
+    });
+
+    // Optional: save token on blur
+    // tokenEl.addEventListener("blur", () => {
+    //   localStorage.setItem("notes_access_token", tokenEl.value.trim());
+    // });
+  </script>
+</body>
+</html>
