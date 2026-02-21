@@ -4,326 +4,565 @@
   <meta charset="UTF-8" />
   <title>AWS Notes API Tester</title>
   <style>
-    body {
-      background: #111827;
-      color: #e5e7eb;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      margin: 0;
-      padding: 20px;
+    :root {
+      --bg: #05070b;
+      --card-bg: #10131b;
+      --accent: #1e90ff;
+      --accent-soft: rgba(30, 144, 255, 0.12);
+      --border: #262b3a;
+      --text: #f5f5f5;
+      --muted: #9ca3af;
+      --danger: #f97373;
+      --success: #4ade80;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     }
-    h1 {
-      margin-top: 0;
-      margin-bottom: 10px;
-    }
-    label {
-      font-weight: 600;
-      display: block;
-      margin-bottom: 4px;
-    }
-    textarea, input {
-      width: 100%;
+
+    * {
       box-sizing: border-box;
-      padding: 8px;
-      margin-bottom: 12px;
-      border-radius: 4px;
-      border: 1px solid #374151;
-      background: #1f2937;
-      color: #e5e7eb;
     }
-    textarea {
-      min-height: 80px;
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        sans-serif;
+      background: radial-gradient(circle at top, #111827 0, var(--bg) 70%);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 32px 12px;
     }
+
+    .shell {
+      width: 100%;
+      max-width: 980px;
+    }
+
+    .card {
+      background: linear-gradient(135deg, #0b1120, #020617);
+      border-radius: 18px;
+      padding: 24px 26px 22px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7);
+      border: 1px solid rgba(148, 163, 184, 0.15);
+    }
+
+    header h1 {
+      margin: 0 0 4px;
+      font-size: 24px;
+    }
+
+    header small {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    header small strong {
+      color: var(--accent);
+    }
+
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-top: 18px;
+    }
+
+    .col {
+      flex: 1 1 260px;
+      min-width: 0;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 4px;
+      color: var(--muted);
+    }
+
+    .label-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    textarea,
+    input {
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(15, 23, 42, 0.95);
+      color: var(--text);
+      font: 13px var(--mono);
+      padding: 8px 10px;
+      resize: vertical;
+      min-height: 40px;
+    }
+
+    textarea:focus,
+    input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px rgba(30, 144, 255, 0.4);
+    }
+
+    textarea.token {
+      min-height: 82px;
+      white-space: nowrap;
+      overflow-x: auto;
+    }
+
+    textarea.note-text {
+      min-height: 82px;
+    }
+
+    input.note-id {
+      font-size: 12px;
+    }
+
     .btn-row {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
-      margin-bottom: 16px;
+      margin-top: 12px;
     }
+
     button {
-      padding: 6px 12px;
-      border-radius: 4px;
-      border: none;
-      background: #2563eb;
-      color: white;
-      cursor: pointer;
-      font-size: 0.9rem;
-    }
-    button:hover {
-      background: #1d4ed8;
-    }
-    button.danger {
-      background: #dc2626;
-    }
-    button.danger:hover {
-      background: #b91c1c;
-    }
-    .panel {
-      margin-bottom: 16px;
-      padding: 12px;
-      border-radius: 6px;
-      background: #020617;
-      border: 1px solid #1f2937;
-    }
-    pre {
-      background: #020617;
-      padding: 10px;
-      border-radius: 4px;
-      white-space: pre-wrap;
-      word-break: break-word;
-      max-height: 260px;
-      overflow-y: auto;
-    }
-    .notes-list {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      max-height: 260px;
-      overflow-y: auto;
-    }
-    .note-item {
-      padding: 8px;
-      border-radius: 4px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      padding: 7px 14px;
+      font-size: 13px;
       background: #111827;
-      border: 1px solid #1f2937;
-      font-size: 0.9rem;
+      color: #e5e7eb;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.12s ease, transform 0.08s ease, border 0.12s ease;
     }
-    .note-id {
-      font-family: monospace;
-      font-size: 0.78rem;
-      color: #9ca3af;
+
+    button span.hotkey {
+      font-size: 11px;
+      opacity: 0.7;
     }
-    .note-meta {
-      color: #9ca3af;
-      font-size: 0.8rem;
+
+    button.primary {
+      background: var(--accent);
+      color: white;
     }
-    .note-text {
+
+    button.danger {
+      background: rgba(239, 68, 68, 0.14);
+      color: #fecaca;
+      border-color: rgba(239, 68, 68, 0.5);
+    }
+
+    button:hover {
+      background: #1f2937;
+      transform: translateY(-0.5px);
+    }
+
+    button.primary:hover {
+      background: #1873cc;
+    }
+
+    button.danger:hover {
+      background: rgba(239, 68, 68, 0.2);
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: default;
+      transform: none;
+    }
+
+    .status-bar {
+      margin-top: 14px;
+      font-size: 12px;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .status-bar strong {
+      font-weight: 600;
+    }
+
+    .status-bar .status-ok {
+      color: var(--success);
+    }
+
+    .status-bar .status-error {
+      color: var(--danger);
+    }
+
+    .status-bar code {
+      font-family: var(--mono);
+      font-size: 11px;
+      background: rgba(15, 23, 42, 0.7);
+      padding: 2px 4px;
+      border-radius: 4px;
+    }
+
+    .response {
+      margin-top: 16px;
+      background: var(--card-bg);
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      padding: 12px 12px 10px;
+      font-family: var(--mono);
+      font-size: 12px;
+      white-space: pre;
+      color: #e5e7eb;
+      overflow-x: auto;
+      max-height: 360px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 11px;
+      background: var(--accent-soft);
+      color: #bfdbfe;
+    }
+
+    .badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--accent);
+      margin-right: 5px;
+    }
+
+    .hint {
+      font-size: 11px;
+      color: var(--muted);
       margin-top: 4px;
     }
-    .status-bar {
-      font-size: 0.85rem;
-      margin-bottom: 4px;
+
+    .hint code {
+      font-family: var(--mono);
+      background: rgba(15, 23, 42, 0.7);
+      padding: 2px 4px;
+      border-radius: 4px;
     }
-    .status-ok {
-      color: #22c55e;
-    }
-    .status-error {
-      color: #f97316;
+
+    @media (max-width: 720px) {
+      .card {
+        padding: 18px 14px 14px;
+      }
+
+      header h1 {
+        font-size: 20px;
+      }
+
+      .response {
+        max-height: 260px;
+      }
     }
   </style>
 </head>
 <body>
-  <h1>AWS Notes API Tester</h1>
-  <p style="margin-top:0; color:#9ca3af;">Backend: API Gateway + Lambda + DynamoDB + Cognito</p>
+  <div class="shell">
+    <div class="card">
+      <header>
+        <h1>AWS Notes API Tester</h1>
+        <small>
+          Backend:
+          <strong>API Gateway</strong> + <strong>Lambda</strong> +
+          <strong>DynamoDB</strong> + <strong>Cognito</strong>
+        </small>
+      </header>
 
-  <div class="panel">
-    <label for="token">Access Token (Bearer):</label>
-    <textarea id="token" placeholder="Paste your Cognito access token here"></textarea>
-  </div>
+      <div class="row" style="margin-top: 18px;">
+        <div class="col">
+          <div class="label-row">
+            <label for="token">Access Token (Bearer)</label>
+            <span class="badge" id="api-url-badge">
+              <span class="badge-dot"></span>
+              <span>API: loading…</span>
+            </span>
+          </div>
+          <textarea
+            id="token"
+            class="token"
+            spellcheck="false"
+            placeholder="Paste your Cognito ACCESS token here (not the ID token)…"
+          ></textarea>
+          <div class="hint">
+            Saved in <code>localStorage</code> so you don't have to paste it every
+            time.
+          </div>
+        </div>
 
-  <div class="panel">
-    <label for="noteText">Note text:</label>
-    <textarea id="noteText" placeholder="Write a note..."></textarea>
+        <div class="col">
+          <label for="note-text">Note text</label>
+          <textarea
+            id="note-text"
+            class="note-text"
+            placeholder="Hello from the land down under"
+          ></textarea>
 
-    <label for="noteId">Note ID (for update/delete):</label>
-    <input id="noteId" placeholder="e.g. 1234abcd-..." />
+          <label for="note-id" style="margin-top: 10px;">Note ID (for update/delete)</label>
+          <input
+            id="note-id"
+            class="note-id"
+            type="text"
+            placeholder="Will be filled automatically after you create a note"
+          />
+        </div>
+      </div>
 
-    <div class="btn-row">
-      <button id="btnList">List notes (GET)</button>
-      <button id="btnCreate">Create note (POST)</button>
-      <button id="btnUpdate">Update note (PUT)</button>
-      <button id="btnDelete" class="danger">Delete note (DELETE)</button>
+      <div class="btn-row">
+        <button id="btn-list" class="primary">
+          List notes <span class="hotkey">(GET)</span>
+        </button>
+        <button id="btn-create">
+          Create note <span class="hotkey">(POST)</span>
+        </button>
+        <button id="btn-update">
+          Update note <span class="hotkey">(PUT)</span>
+        </button>
+        <button id="btn-delete" class="danger">
+          Delete note <span class="hotkey">(DELETE)</span>
+        </button>
+      </div>
+
+      <div class="status-bar">
+        <div id="status-text">
+          Status: <strong>-</strong>
+        </div>
+        <div>
+          <span id="status-extra"></span>
+        </div>
+      </div>
+
+      <div class="response" id="response">// Waiting for request…</div>
     </div>
   </div>
 
-  <div class="panel">
-    <div class="status-bar" id="statusLine">Status: (none)</div>
-    <strong>Notes:</strong>
-    <div class="notes-list" id="notesList"></div>
-  </div>
-
-  <div class="panel">
-    <strong>Raw response / errors:</strong>
-    <pre id="responseBox">Waiting for request...</pre>
-  </div>
-
+  <!-- Load config (API URL) before the main script -->
+  <script src="config.js"></script>
   <script>
-    // === CONFIG ===
-    const API_URL = "https://ss5k5py93l.execute-api.ap-southeast-2.amazonaws.com/prod/notes";
+    (function () {
+      const cfg = window.NOTES_API_CONFIG || {};
+      const apiBase = (cfg.apiBaseUrl || "").replace(/\/+$/, ""); // trim trailing slash
 
-    const tokenEl = document.getElementById("token");
-    const noteTextEl = document.getElementById("noteText");
-    const noteIdEl = document.getElementById("noteId");
-    const responseBox = document.getElementById("responseBox");
-    const notesListEl = document.getElementById("notesList");
-    const statusLine = document.getElementById("statusLine");
+      const tokenInput = document.getElementById("token");
+      const noteTextInput = document.getElementById("note-text");
+      const noteIdInput = document.getElementById("note-id");
+      const respEl = document.getElementById("response");
+      const statusTextEl = document.getElementById("status-text");
+      const statusExtraEl = document.getElementById("status-extra");
+      const apiUrlBadge = document.getElementById("api-url-badge");
 
-    document.getElementById("btnList").addEventListener("click", listNotes);
-    document.getElementById("btnCreate").addEventListener("click", createNote);
-    document.getElementById("btnUpdate").addEventListener("click", updateNote);
-    document.getElementById("btnDelete").addEventListener("click", deleteNote);
+      const btnList = document.getElementById("btn-list");
+      const btnCreate = document.getElementById("btn-create");
+      const btnUpdate = document.getElementById("btn-update");
+      const btnDelete = document.getElementById("btn-delete");
 
-    function getToken() {
-      const t = tokenEl.value.trim();
-      if (!t) throw new Error("Please paste an access token first.");
-      return t;
-    }
+      const TOKEN_KEY = "notesApiAccessToken";
 
-    function setStatus(ok, text) {
-      statusLine.textContent = "Status: " + text;
-      statusLine.className = "status-bar " + (ok ? "status-ok" : "status-error");
-    }
+      // --- Init UI ---
 
-    function showResponse(obj) {
+      if (apiBase) {
+        apiUrlBadge.querySelector("span:last-child").textContent =
+          apiBase + "/notes";
+      } else {
+        apiUrlBadge.querySelector("span:last-child").textContent =
+          "API URL not set in config.js";
+      }
+
+      // Load token from localStorage if present
       try {
-        responseBox.textContent = JSON.stringify(obj, null, 2);
-      } catch {
-        responseBox.textContent = String(obj);
-      }
-    }
-
-    function renderNotes(items) {
-      notesListEl.innerHTML = "";
-      if (!items || !items.length) {
-        const p = document.createElement("div");
-        p.textContent = "(no notes)";
-        p.style.color = "#9ca3af";
-        notesListEl.appendChild(p);
-        return;
+        const saved = localStorage.getItem(TOKEN_KEY);
+        if (saved) {
+          tokenInput.value = saved;
+        }
+      } catch (e) {
+        // ignore
       }
 
-      for (const n of items) {
-        const div = document.createElement("div");
-        div.className = "note-item";
+      function setStatus(status, opts) {
+        opts = opts || {};
+        const { code, error } = opts;
 
-        const idLine = document.createElement("div");
-        idLine.className = "note-id";
-        idLine.textContent = n.id || "(no id)";
-        idLine.addEventListener("click", () => {
-          noteIdEl.value = n.id || "";
-        });
+        let cls = "";
+        if (status === "OK") cls = "status-ok";
+        else if (status === "ERROR") cls = "status-error";
 
-        const meta = document.createElement("div");
-        meta.className = "note-meta";
-        const created = n.createdAt ? `created ${n.createdAt}` : "";
-        const updated = n.updatedAt ? ` • updated ${n.updatedAt}` : "";
-        meta.textContent = created + updated;
+        statusTextEl.innerHTML =
+          'Status: <strong class="' + cls + '">' + status + "</strong>";
 
-        const text = document.createElement("div");
-        text.className = "note-text";
-        text.textContent = n.text || "";
-
-        div.appendChild(idLine);
-        div.appendChild(meta);
-        div.appendChild(text);
-        notesListEl.appendChild(div);
-      }
-    }
-
-    async function apiRequest(method, body, id) {
-      let url = API_URL;
-      if (id) {
-        const qs = new URLSearchParams({ id });
-        url += "?" + qs.toString();
+        if (code || error) {
+          const bits = [];
+          if (code) bits.push("HTTP " + code);
+          if (error) bits.push(error);
+          statusExtraEl.textContent = bits.join(" • ");
+        } else {
+          statusExtraEl.textContent = "";
+        }
       }
 
-      const headers = {
-        "Authorization": "Bearer " + getToken()
-      };
-      if (body) {
-        headers["Content-Type"] = "application/json";
+      function setResponse(text) {
+        respEl.textContent = text;
       }
 
-      const res = await fetch(url, {
-        method,
-        headers,
-        body: body ? JSON.stringify(body) : undefined
+      function getToken() {
+        return tokenInput.value.trim();
+      }
+
+      function persistToken() {
+        const t = getToken();
+        try {
+          if (t) localStorage.setItem(TOKEN_KEY, t);
+          else localStorage.removeItem(TOKEN_KEY);
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      tokenInput.addEventListener("blur", persistToken);
+      tokenInput.addEventListener("change", persistToken);
+
+      async function callApi(method, path, body) {
+        const token = getToken();
+
+        if (!apiBase) {
+          setStatus("ERROR", { error: "Missing apiBaseUrl in config.js" });
+          throw new Error("Missing apiBaseUrl in config.js");
+        }
+
+        if (!token) {
+          setStatus("ERROR", { error: "Access token is required" });
+          throw new Error("Missing access token");
+        }
+
+        const url = apiBase + path;
+
+        setStatus("Sending…", {});
+        setResponse("// Request: " + method + " " + url);
+
+        const headers = {
+          Authorization: "Bearer " + token,
+        };
+
+        if (body != null) {
+          headers["Content-Type"] = "application/json";
+        }
+
+        let res;
+        try {
+          res = await fetch(url, {
+            method,
+            headers,
+            body: body != null ? JSON.stringify(body) : undefined,
+          });
+        } catch (err) {
+          setStatus("ERROR", { error: "Network error" });
+          setResponse("// Network error:\\n" + String(err));
+          throw err;
+        }
+
+        let text;
+        try {
+          text = await res.text();
+        } catch (err) {
+          text = "";
+        }
+
+        let pretty = text;
+        try {
+          if (text && text.trim().startsWith("{")) {
+            pretty = JSON.stringify(JSON.parse(text), null, 2);
+          }
+        } catch (e) {
+          // leave as-is
+        }
+
+        setResponse(pretty || "// (empty response)");
+
+        if (res.ok) {
+          setStatus("OK", { code: res.status });
+        } else {
+          let errLabel = "HTTP error";
+          try {
+            const json = JSON.parse(text);
+            if (json.message) errLabel = json.message;
+          } catch (_) {}
+
+          setStatus("ERROR", { code: res.status, error: errLabel });
+        }
+
+        return { res, text };
+      }
+
+      // --- Button actions ---
+
+      btnList.addEventListener("click", async () => {
+        try {
+          await callApi("GET", "/notes", null);
+        } catch (_) {}
       });
 
-      const text = await res.text();
-      let data;
-      try {
-        data = text ? JSON.parse(text) : null;
-      } catch {
-        data = text;
-      }
-
-      setStatus(res.ok, res.status + " " + res.statusText);
-      showResponse(data);
-
-      return { res, data };
-    }
-
-    async function listNotes() {
-      try {
-        const { data } = await apiRequest("GET");
-        renderNotes(data && data.items ? data.items : []);
-      } catch (err) {
-        setStatus(false, "Error");
-        showResponse("Request error: " + err.message);
-      }
-    }
-
-    async function createNote() {
-      try {
-        const text = noteTextEl.value;
-        const { data } = await apiRequest("POST", { text });
-        // After creating, refresh list and prefill ID
-        if (data && data.id) {
-          noteIdEl.value = data.id;
-        }
-        await listNotes();
-      } catch (err) {
-        setStatus(false, "Error");
-        showResponse("Request error: " + err.message);
-      }
-    }
-
-    async function updateNote() {
-      try {
-        const id = noteIdEl.value.trim();
-        if (!id) {
-          alert("Enter a note ID first");
+      btnCreate.addEventListener("click", async () => {
+        const text = noteTextInput.value.trim();
+        if (!text) {
+          setStatus("ERROR", { error: "Note text is required" });
           return;
         }
-        const text = noteTextEl.value;
-        await apiRequest("PUT", { text }, id);
-        await listNotes();
-      } catch (err) {
-        setStatus(false, "Error");
-        showResponse("Request error: " + err.message);
-      }
-    }
 
-    async function deleteNote() {
-      try {
-        const id = noteIdEl.value.trim();
+        try {
+          const { text: raw } = await callApi("POST", "/notes", { text });
+          try {
+            const json = JSON.parse(raw || "{}");
+            if (json.id) {
+              noteIdInput.value = json.id;
+            }
+          } catch (e) {
+            // ignore
+          }
+        } catch (_) {}
+      });
+
+      btnUpdate.addEventListener("click", async () => {
+        const id = noteIdInput.value.trim();
+        const text = noteTextInput.value.trim();
+
         if (!id) {
-          alert("Enter a note ID first");
+          setStatus("ERROR", { error: "Note ID is required to update" });
           return;
         }
-        await apiRequest("DELETE", null, id);
-        await listNotes();
-      } catch (err) {
-        setStatus(false, "Error");
-        showResponse("Request error: " + err.message);
-      }
-    }
+        if (!text) {
+          setStatus("ERROR", { error: "Note text is required to update" });
+          return;
+        }
 
-    // === Auto-load notes if token already present ===
-    window.addEventListener("load", () => {
-      // If you want, you can uncomment these lines to remember token:
-      // const saved = localStorage.getItem("notes_access_token");
-      // if (saved) tokenEl.value = saved;
+        try {
+          await callApi("PUT", "/notes?id=" + encodeURIComponent(id), { text });
+        } catch (_) {}
+      });
 
-      if (tokenEl.value.trim()) {
-        listNotes();
-      }
-    });
+      btnDelete.addEventListener("click", async () => {
+        const id = noteIdInput.value.trim();
+        if (!id) {
+          setStatus("ERROR", { error: "Note ID is required to delete" });
+          return;
+        }
 
-    // Optional: save token on blur
-    // tokenEl.addEventListener("blur", () => {
-    //   localStorage.setItem("notes_access_token", tokenEl.value.trim());
-    // });
+        try {
+          await callApi("DELETE", "/notes?id=" + encodeURIComponent(id), null);
+        } catch (_) {}
+      });
+
+      // Initial status
+      setStatus("-", {});
+      setResponse("// Waiting for request…");
+    })();
   </script>
 </body>
 </html>
