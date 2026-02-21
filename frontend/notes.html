@@ -157,6 +157,11 @@
       border-color: rgba(239, 68, 68, 0.5);
     }
 
+    button.secondary {
+      background: rgba(15, 23, 42, 0.9);
+      border-color: var(--border);
+    }
+
     button:hover {
       background: #1f2937;
       transform: translateY(-0.5px);
@@ -168,6 +173,10 @@
 
     button.danger:hover {
       background: rgba(239, 68, 68, 0.2);
+    }
+
+    button.secondary:hover {
+      background: rgba(15, 23, 42, 1);
     }
 
     button:disabled {
@@ -278,6 +287,15 @@
         </small>
       </header>
 
+      <div class="btn-row" style="margin-top: 14px;">
+        <button id="btn-login" class="primary">
+          Login with Cognito
+        </button>
+        <button id="btn-logout" class="secondary">
+          Clear token
+        </button>
+      </div>
+
       <div class="row" style="margin-top: 18px;">
         <div class="col">
           <div class="label-row">
@@ -291,7 +309,7 @@
             id="token"
             class="token"
             spellcheck="false"
-            placeholder="Paste your Cognito ACCESS token here (not the ID token)…"
+            placeholder="Paste your Cognito ACCESS token here (or click Login above)…"
           ></textarea>
           <div class="hint">
             Saved in <code>localStorage</code> so you don't have to paste it every
@@ -345,12 +363,14 @@
     </div>
   </div>
 
-  <!-- Load config (API URL) before the main script -->
+  <!-- Load config (API + Cognito) -->
   <script src="config.js"></script>
   <script>
     (function () {
-      const cfg = window.NOTES_API_CONFIG || {};
-      const apiBase = (cfg.apiBaseUrl || "").replace(/\/+$/, ""); // trim trailing slash
+      const apiCfg = window.NOTES_API_CONFIG || {};
+      const cognitoCfg = window.COGNITO_CONFIG || {};
+
+      const apiBase = (apiCfg.apiBaseUrl || "").replace(/\/+$/, "");
 
       const tokenInput = document.getElementById("token");
       const noteTextInput = document.getElementById("note-text");
@@ -364,11 +384,12 @@
       const btnCreate = document.getElementById("btn-create");
       const btnUpdate = document.getElementById("btn-update");
       const btnDelete = document.getElementById("btn-delete");
+      const btnLogin = document.getElementById("btn-login");
+      const btnLogout = document.getElementById("btn-logout");
 
       const TOKEN_KEY = "notesApiAccessToken";
 
-      // --- Init UI ---
-
+      // --- Init badge ---
       if (apiBase) {
         apiUrlBadge.querySelector("span:last-child").textContent =
           apiBase + "/notes";
@@ -377,16 +398,7 @@
           "API URL not set in config.js";
       }
 
-      // Load token from localStorage if present
-      try {
-        const saved = localStorage.getItem(TOKEN_KEY);
-        if (saved) {
-          tokenInput.value = saved;
-        }
-      } catch (e) {
-        // ignore
-      }
-
+      // --- helper: status/response ---
       function setStatus(status, opts) {
         opts = opts || {};
         const { code, error } = opts;
@@ -426,9 +438,20 @@
         }
       }
 
+      // Load token from localStorage if present
+      try {
+        const saved = localStorage.getItem(TOKEN_KEY);
+        if (saved) {
+          tokenInput.value = saved;
+        }
+      } catch (e) {
+        // ignore
+      }
+
       tokenInput.addEventListener("blur", persistToken);
       tokenInput.addEventListener("change", persistToken);
 
+      // --- API call helper ---
       async function callApi(method, path, body) {
         const token = getToken();
 
@@ -501,6 +524,103 @@
         return { res, text };
       }
 
+      // --- Cognito login helpers ---
+
+      function buildLoginUrl() {
+        const d = (cognitoCfg.domain || "").replace(/\/+$/, "");
+        const clientId = cognitoCfg.clientId;
+        const redirectUri = cognitoCfg.redirectUri;
+        const scope = cognitoCfg.scope || "email openid phone";
+
+        if (!d || !clientId || !redirectUri) {
+          alert("Cognito config missing in config.js");
+          return null;
+        }
+
+        const params = new URLSearchParams({
+          client_id: clientId,
+          response_type: "code",
+          scope,
+          redirect_uri: redirectUri,
+        });
+
+        return d + "/login?" + params.toString();
+      }
+
+      async function exchangeCodeForToken(code) {
+        const d = (cognitoCfg.domain || "").replace(/\/+$/, "");
+        const clientId = cognitoCfg.clientId;
+        const redirectUri = cognitoCfg.redirectUri;
+
+        if (!d || !clientId || !redirectUri) {
+          setStatus("ERROR", { error: "Missing Cognito config for token" });
+          return;
+        }
+
+        setStatus("Sending…", { error: "Exchanging code for token…" });
+        setResponse("// Exchanging authorization code for tokens…");
+
+        const body = new URLSearchParams({
+          grant_type: "authorization_code",
+          client_id: clientId,
+          code: code,
+          redirect_uri: redirectUri,
+        });
+
+        const tokenUrl = d + "/oauth2/token";
+
+        let res, json;
+        try {
+          res = await fetch(tokenUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: body.toString(),
+          });
+
+          json = await res.json();
+        } catch (err) {
+          setStatus("ERROR", { error: "Token request failed" });
+          setResponse("// Token request failed:\\n" + String(err));
+          return;
+        }
+
+        if (!res.ok) {
+          const msg = json.error_description || json.error || "Token error";
+          setStatus("ERROR", { code: res.status, error: msg });
+          setResponse(JSON.stringify(json, null, 2));
+          return;
+        }
+
+        // success
+        const accessToken = json.access_token;
+        tokenInput.value = accessToken || "";
+        persistToken();
+
+        setStatus("OK", { code: res.status, error: "Token acquired" });
+        setResponse(JSON.stringify(json, null, 2));
+
+        // Clean ?code=… from URL
+        try {
+          const url = new URL(window.location.href);
+          url.searchParams.delete("code");
+          url.searchParams.delete("state");
+          window.history.replaceState({}, document.title, url.toString());
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      function getCodeFromUrl() {
+        try {
+          const url = new URL(window.location.href);
+          return url.searchParams.get("code");
+        } catch (e) {
+          return null;
+        }
+      }
+
       // --- Button actions ---
 
       btnList.addEventListener("click", async () => {
@@ -559,9 +679,30 @@
         } catch (_) {}
       });
 
+      btnLogin.addEventListener("click", () => {
+        const url = buildLoginUrl();
+        if (!url) return;
+        // Full redirect: user logs in on Cognito Hosted UI,
+        // then Cognito redirects back with ?code=… to redirectUri
+        window.location.href = url;
+      });
+
+      btnLogout.addEventListener("click", () => {
+        tokenInput.value = "";
+        persistToken();
+        setStatus("-", {});
+        setResponse("// Token cleared. Paste a new one or click Login.");
+      });
+
       // Initial status
       setStatus("-", {});
       setResponse("// Waiting for request…");
+
+      // On load: if there's a ?code=… in the URL, exchange it automatically
+      const code = getCodeFromUrl();
+      if (code) {
+        exchangeCodeForToken(code);
+      }
     })();
   </script>
 </body>
